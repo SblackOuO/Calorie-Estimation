@@ -1,0 +1,89 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #ffffff;
+    text-align: center;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #000;
+    color: white;
+    padding: 15px 20px;
+}
+
+header a {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 10px 15px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+header a:hover {
+    background-color: #444;
+}
+
+#games-container {
+    display: block; /* 確保比賽信息按垂直順序排列 */
+    padding: 20px;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: bold;
+    margin: 20px 0;
+    text-align: center;
+    color: #333;
+}
+
+.game-box {
+    width: 100%; /* 讓每個比賽占據整個寬度 */
+    max-width: 400px; /* 限制最大寬度 */
+    margin: 0 auto 20px; /* 居中排列，每個比賽之間有間距 */
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    text-align: center;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.game-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
+.game-box .team {
+    font-weight: bold;
+    font-size: 18px;
+    margin: 10px 0;
+}
+
+.game-box .status {
+    color: gray;
+    font-size: 14px;
+    margin: 5px 0;
+}
+
+.game-box a {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 10px 15px;
+    background-color: #007BFF;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.game-box a:hover {
+    background-color: #0056b3;
+}
