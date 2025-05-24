@@ -40,7 +40,7 @@ user_culture = 'taiwanese'
 user_history = []  # 可填入已嘗試的菜名
 
 # ==== 3. 訓練分類器（含增強、正則、調度、早停、AMP） ====
-def train_classifier(epochs=30, batch_size=128, patience=5, lr=5e-5):
+def train_classifier(epochs=10, batch_size=128, patience=5, lr=5e-5):
     print('>>> Start training classifier on', DEVICE)
     # 資料增強：微調強度
     train_transform = transforms.Compose([
@@ -77,7 +77,7 @@ def train_classifier(epochs=30, batch_size=128, patience=5, lr=5e-5):
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    scaler = torch.cuda.amp.GradScaler() if DEVICE=='cuda' else None
+    scaler = GradScaler() if DEVICE=='cuda' else None
     best_acc = 0.0
     no_improve = 0
 
