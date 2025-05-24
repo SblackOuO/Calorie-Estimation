@@ -1,0 +1,206 @@
+
+/* ===== 基本重置 & 佈局 ===== */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #000;
+    color: white;
+    padding: 15px 20px;
+}
+
+header a {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 10px 15px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+header a:hover {
+    background-color: #444;
+}
+
+/* 主要內容容器 */
+main {
+    width: 90%;
+    max-width: 1200px;
+    margin: 2em auto;  /* 置中 */
+}
+
+/* ===== 隊名標題 ===== */
+main h1 {
+    margin-top: 0;
+    font-size: 2em;
+    margin-bottom: 1em;
+    text-transform: uppercase; /* 可選，看你是否想要全部大寫 */
+}
+
+/* ===== 保留原先 .team-summary 的設計 ===== */
+.team-summary {
+    margin-bottom: 2em;
+    padding: 1em;
+    background-color: #fafafa; 
+    border-radius: 4px;
+    /* 如果想留陰影可以打開以下 */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.team-summary h3 {
+    margin-top: 0;
+    margin-bottom: 1em;
+    font-size: 1.25em;
+    color: #333;
+}
+
+/* 讓標籤與數值更靠近 */
+.info-container {
+    display: flex;
+    flex-wrap: wrap; /* 資訊多的話自動換行 */
+    gap: 1.5em;      /* 每個 info-item 之間的間距 */
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+}
+
+.label {
+    font-weight: bold;
+    margin-right: 0.3em; /* 縮短「標籤：值」的距離 */
+    color: #555;
+}
+
+.value {
+    color: #000;
+}
+
+/* ===== 下拉選單 ===== */
+.team-dropdown,
+.season-dropdown,
+.standing_season-dropdown {
+    display: inline-block;
+    margin: 0.5em;
+}
+
+select {
+    /* 移除瀏覽器預設箭頭 (部分瀏覽器) */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    
+    /* 基本外觀 */
+    background-color: #f8f8f8;   /* 柔和淡色背景 */
+    border: 1px solid #ccc;     /* 淡淡的邊框 */
+    border-radius: 4px;         /* 圓角 */
+    font-size: 1em;
+    color: #555;
+    padding: 0.5em 2.5em 0.5em 1em;       /* 預留右側空間給箭頭 */
+    cursor: pointer;
+    
+    /* 背景圖：自訂箭頭 icon (SVG base64) */
+    background-image: url("data:image/svg+xml,%3Csvg fill='%%23555' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 6'%3E%3Cpath d='M0 0l6 6 6-6H0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75em center; /* 控制箭頭位置 */
+    background-size: 0.75em;                  /* 箭頭大小 */
+
+    /* 漸變 & 互動效果 */
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* 滑鼠懸停時 */
+select:hover {
+    background-color: #fcfcfc;  /* 較亮一些 */
+    border-color: #bbb;
+}
+
+/* 聚焦 (點擊) 時 */
+select:focus {
+    outline: none;
+    background-color: #fff;     /* 更亮的背景 */
+    border-color: #999;         /* 邊框加深 */
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1); 
+}
+
+/* ===== 統一給其他兩個區塊(Stats, Roster)一個簡單風格 ===== */
+.section-container {
+    margin-bottom: 2em;
+    padding: 1em;
+    background-color: #fafafa;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* 與 .team-summary 相同風格 */
+}
+
+.section-container h3 {
+    margin-top: 0;
+    margin-bottom: 1em;
+    font-size: 1.25em;
+    color: #333;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 0.5em;
+}
+
+/* ===== 資料表格 (Team Stats, Team Roster) ===== */
+.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5em;
+}
+
+.stats-table thead tr {
+    background-color: #f2f2f2;
+}
+
+.stats-table th,
+.stats-table td {
+    border: 1px solid #ddd;
+    padding: 0.75em;
+    text-align: center;
+}
+
+.stats-table th {
+    font-weight: bold;
+    color: #333;
+}
+
+/* 表格中的連結 */
+.stats-table a {
+    text-decoration: none;
+    color: #007acc; /* 可自行調整 */
+}
+
+
+.favorite-button {
+    position: absolute;
+    top: 13vh;
+    left: 40vw;
+}
+
+#fav-team-btn {
+    font-size: 30px;
+    border: none;
+    background: none;
+    color: #ccc; /* 空心星星顏色 */
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+#fav-team-btn.filled {
+    color: #ffcc00; /* 實心星星顏色 */
+}
+
+#fav-team-btn:hover {
+    color: #ff9900; /* 滑鼠懸停效果 */
+}
