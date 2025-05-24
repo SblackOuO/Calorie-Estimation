@@ -21,13 +21,13 @@ class FoodClassifier:
 
         # Build model: same head as in training
         self.model = mobilenet_v2(weights=MobileNet_V2_Weights.IMAGENET1K_V1)
-        # Replace classifier head with Dropout + Linear(num_classes)
+        # Replace only the second module in classifier, mirroring training code
         self.model.classifier[1] = nn.Sequential(
             nn.Dropout(0.2),
             nn.Linear(self.model.last_channel, num_classes)
         )
 
-        # Load fine-tuned weights
+        # Load fine-tuned weights (keys expect classifier.1.1.*)
         state_dict = torch.load(model_path, map_location=self.device)
         self.model.load_state_dict(state_dict, strict=True)
 
@@ -48,12 +48,8 @@ class FoodClassifier:
         Predict the class label for a single PIL image.
         Returns the class name.
         """
-        # Ensure RGB
         img = pil_img.convert('RGB')
-        # Apply preprocessing
         x = self.val_transform(img).unsqueeze(0).to(self.device)
-
-        # Inference
         with torch.no_grad():
             logits = self.model(x)
         idx = logits.argmax(dim=1).item()
