@@ -100,9 +100,6 @@ def register():
 
     return render_template('register.html', msg=msg, form_data=form_data)
 
-
-
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     msg = ""
@@ -138,80 +135,23 @@ def login():
 
     return render_template('login.html', msg = msg)
 
-
 @app.route('/logout', methods=['POST'])
 def logout():
     session.pop('username', None)
     return redirect(url_for('index'))
 
-
 @app.route('/detect', methods=['POST'])
 def detect():
-    if 'image' not in request.files:
-        return redirect(url_for('index'))
-
-    file = request.files['image']
-    image_path = os.path.join(UPLOAD_FOLDER, 'upload.jpg')
-    file.save(image_path)
-
-    # 用 YOLO 模型做偵測
-    detections = detector.detect(image_path)
-    image = Image.open(image_path).convert("RGB")
-    draw = ImageDraw.Draw(image)
-    results_data = []
-
-    # 清空舊的裁切圖
-    shutil.rmtree(CROP_FOLDER)
-    os.makedirs(CROP_FOLDER)
-
-     # 初始總攝取量
-    total_nutrition = {
-        'calories': 0,
-        'protein': 0,
-        'fats': 0,
-        'carbohydrates': 0,
-        'fiber': 0,
-        'sugars': 0,
-        'sodium': 0
-    }
-
-    if not detections.empty:
-        for i, row in detections.iterrows():
-            x1, y1, x2, y2 = map(int, [row['xmin'], row['ymin'], row['xmax'], row['ymax']])
-            name = row['name']
-            conf = float(row['confidence'])
-
-            draw.rectangle([(x1, y1), (x2, y2)], outline="red", width=3)
-            draw.text((x1, max(y1-10, 0)), f"{name} ({conf:.2f})", fill="red")
-
-            crop = image.crop((x1, y1, x2, y2))
-            crop_filename = f"crop_{i}.jpg"
-            crop_path = os.path.join(CROP_FOLDER, crop_filename)
-            crop.save(crop_path)
-            food_type = classifier.predict(crop)
-            
-            base_cal = estimate_calorie(food_type)
-            nutrition = get_nutrition_info(food_type)
-
-            for key in total_nutrition:
-                total_nutrition[key] += nutrition.get(key, 0)
-
-            results_data.append({
-                'index': i+1,
-                'name': food_type,
-                'base_cal': base_cal,
-                'nutrition': nutrition,
-                'crop_image': crop_filename
-            })
-
-        image.save(os.path.join(UPLOAD_FOLDER, 'result.jpg'))
-
-        date_str = request.form.get('date')  # 格式應為 'YYYY-MM-DD'
-        meal = request.form.get('meal')      # 早餐、午餐、晚餐、其他
-
-        # 儲存每日攝取資料到資料庫
+    msg = ""
+    if 'upload' in request.form: 
+        # 點擊「上傳紀錄」按鈕的 POST 請求
+        date_str = session.get('date')
+        meal = session.get('meal')
         user_id = session.get('user_id')
-        if user_id:
+        total_nutrition = session.get('total_nutrition', {})
+        detections = session.get('detections', [])
+
+        if user_id and total_nutrition:
             conn = get_db_connection()
             try:
                 with conn.cursor() as cursor:
@@ -220,7 +160,6 @@ def detect():
                         (user_id, date, meal, calories, protein, fats, carbohydrates, fiber, sugars, sodium)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """
-                    #today = date.today()
                     cursor.execute(sql, (
                         user_id, date_str, meal,
                         total_nutrition['calories'],
@@ -232,11 +171,85 @@ def detect():
                         total_nutrition['sodium']
                     ))
                     conn.commit()
+                    msg = "✔️ 上傳成功！紀錄已儲存到資料庫。"
             except Exception as e:
-                print("紀錄攝取量失敗：", e)
+                msg = f"上傳失敗：{e}"
             finally:
                 conn.close()
-    return render_template('detect.html', detections=results_data)
+
+        return render_template('detect.html', detections=detections, date=date_str, meal=meal, msg=msg)
+
+    else: 
+        if 'image' not in request.files:
+            return redirect(url_for('index'))
+
+        file = request.files['image']
+        image_path = os.path.join(UPLOAD_FOLDER, 'upload.jpg')
+        file.save(image_path)
+
+        # 取得日期、餐別
+        date_str = request.form.get('date')
+        meal = request.form.get('meal')
+
+        # 用 YOLO 模型做偵測
+        detections = detector.detect(image_path)
+        image = Image.open(image_path).convert("RGB")
+        draw = ImageDraw.Draw(image)
+        results_data = []
+
+        # 清空舊的裁切圖
+        shutil.rmtree(CROP_FOLDER)
+        os.makedirs(CROP_FOLDER)
+
+        # 初始總攝取量
+        total_nutrition = {
+            'calories': 0,
+            'protein': 0,
+            'fats': 0,
+            'carbohydrates': 0,
+            'fiber': 0,
+            'sugars': 0,
+            'sodium': 0
+        }
+
+        if not detections.empty:
+            for i, row in detections.iterrows():
+                x1, y1, x2, y2 = map(int, [row['xmin'], row['ymin'], row['xmax'], row['ymax']])
+                name = row['name']
+                conf = float(row['confidence'])
+
+                draw.rectangle([(x1, y1), (x2, y2)], outline="red", width=3)
+                draw.text((x1, max(y1-10, 0)), f"{name} ({conf:.2f})", fill="red")
+
+                crop = image.crop((x1, y1, x2, y2))
+                crop_filename = f"crop_{i}.jpg"
+                crop_path = os.path.join(CROP_FOLDER, crop_filename)
+                crop.save(crop_path)
+                food_type = classifier.predict(crop)
+                
+                base_cal = estimate_calorie(food_type)
+                nutrition = get_nutrition_info(food_type)
+
+                for key in total_nutrition:
+                    total_nutrition[key] += nutrition.get(key, 0)
+
+                results_data.append({
+                    'index': i+1,
+                    'name': food_type,
+                    'base_cal': base_cal,
+                    'nutrition': nutrition,
+                    'crop_image': crop_filename
+                })
+
+            image.save(os.path.join(UPLOAD_FOLDER, 'result.jpg'))
+
+        # 存到 session
+        session['detections'] = results_data
+        session['date'] = date_str
+        session['meal'] = meal
+        session['total_nutrition'] = total_nutrition
+
+        return render_template('detect.html', detections=results_data, date=date_str, meal=meal, msg=msg)
 
 @app.route('/calendar')
 def calendar():
@@ -291,7 +304,7 @@ def calendar_detail():
             """
             cursor.execute(sql2, (session['user_id'],))
             user_record = cursor.fetchone()
-            demand = calculate_demand(user_record.get('height_cm',0), user_record.get('weight_kg',0), user_record.get('age',0), user_record.get('gender',0), user_record.get('activity_level',0))
+            demand = calculate_demand(user_record.get('height',0), user_record.get('weight',0), user_record.get('age',0), user_record.get('sex',0), user_record.get('activity_level',0))
 
             if not records:
                 return jsonify({'msg': '該日無攝取紀錄'})
