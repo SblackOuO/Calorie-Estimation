@@ -31,3 +31,35 @@ We use a combination of:
 git clone https://github.com/<your-team-id>/food-calorie-ai.git
 cd food-calorie-ai
 pip install -r requirements.txt
+
+##  Database
+CREATE DATABASE Calorie_AI;
+
+USE Calorie_AI;
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    sex   VARCHAR(10),
+    height FLOAT,     -- 身高（公分）
+    weight FLOAT,     -- 體重（公斤）
+    age INT,          -- 年齡
+    activity_level VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE daily_nutrition (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    date DATE NOT NULL,
+    calories FLOAT DEFAULT 0,
+    protein FLOAT DEFAULT 0,
+    fats FLOAT DEFAULT 0,
+    carbohydrates FLOAT DEFAULT 0,
+    fiber FLOAT DEFAULT 0,
+    sugars FLOAT DEFAULT 0,
+    sodium FLOAT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
