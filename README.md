@@ -33,7 +33,6 @@ cd food-calorie-ai
 pip install -r requirements.txt
 
 ##  Database
-```bash
 CREATE DATABASE Calorie_AI;
 
 USE Calorie_AI;
