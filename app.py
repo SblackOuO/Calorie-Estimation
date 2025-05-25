@@ -278,7 +278,6 @@ def calendar_detail():
             """
             cursor.execute(sql2, (session['user_id'],))
             user_record = cursor.fetchone()
-            print(user_record)
             demand = calculate_demand(user_record.get('height',0), user_record.get('weight',0), user_record.get('age',0), user_record.get('sex',0), user_record.get('activity_level',0))
 
             if not records:
