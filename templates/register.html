@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>註冊</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .register-container {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      max-width: 400px;
+      width: 100%;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: #444;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 18px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 16px;
+      color: #333;
+      background-color: #fff;
+      appearance: none;
+    }
+    select {
+      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 5.5l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 12px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #4CAF50;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    p.msg {
+      color: red;
+      text-align: center;
+      margin-top: 12px;
+      font-weight: 600;
+    }
+    a {
+      display: block;
+      text-align: center;
+      margin-top: 18px;
+      color: #007BFF;
+      text-decoration: none;
+      font-weight: 600;
+      transition: text-decoration 0.3s ease;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="register-container">
+    <h2>註冊帳號</h2>
+    <form method="POST" action="/register">
+      <label>帳號：</label>
+      <input type="text" name="username" value="{{ form_data.username }}" required>
+
+      <label>密碼：</label>
+      <input type="password" name="password" required>
+
+      <label>性別：</label>
+      <select name="sex" required>
+        <option value="">請選擇</option>
+        <option value="male" {% if form_data.sex == 'male' %}selected{% endif %}>男性</option>
+        <option value="female" {% if form_data.sex == 'female' %}selected{% endif %}>女性</option>
+      </select>
+
+      <label>身高 (cm)：</label>
+      <input type="number" step="0.1" name="height" value="{{ form_data.height }}" required>
+
+      <label>體重 (kg)：</label>
+      <input type="number" step="0.1" name="weight" value="{{ form_data.weight }}" required>
+
+      <label>年齡：</label>
+      <input type="number" name="age" value="{{ form_data.age }}" required>
+
+      <label>活動量：</label>
+      <select name="activity_level" required>
+        <option value="">請選擇</option>
+        <option value="less" {% if form_data.activity_level == 'less' %}selected{% endif %}>極低 (久坐)</option>
+        <option value="low" {% if form_data.activity_level == 'low' %}selected{% endif %}>輕度活動（少量運動/家事）</option>
+        <option value="medium" {% if form_data.activity_level == 'medium' %}selected{% endif %}>中度活動（每週3-5次運動）</option>
+        <option value="high" {% if form_data.activity_level == 'high' %}selected{% endif %}>高度活動（幾乎每天運動）</option>
+        <option value="extreme_high" {% if form_data.activity_level == 'extreme_high' %}selected{% endif %}>極度活動（運動員）</option>
+      </select>
+
+      <button type="submit">註冊</button>
+    </form>
+    <p class="msg">{{ msg }}</p>
+    <a href="{{ url_for('login') }}">返回登入</a>
+  </div>
+</body>
+</html>

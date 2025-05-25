@@ -43,13 +43,15 @@
             <h6 class="mt-3">營養物資訊：</h6>
             <ul class="nutrition-list ps-3">
               {% for key, value in item.nutrition.items() %}
-                <li><strong>{{ key }}:</strong>
-                  {% if value is iterable and not value is string %}
-                    {{ value | join(', ') }}
-                  {% else %}
-                    {{ value }}
-                  {% endif %}
-                </li>
+                {% if key != "calories" %}
+                  <li><strong>{{ key }}:</strong>
+                    {% if value is iterable and not value is string %}
+                      {{ value | join(', ') }}
+                    {% else %}
+                      {{ value }}
+                    {% endif %}    
+                  </li>
+                {% endif %}
               {% endfor %}
             </ul>
           </div>
@@ -59,7 +61,7 @@
     </div>
 
     <div class="text-center mt-4">
-      <a href="/" class="btn btn-secondary">回到首頁</a>
+      <a href="/homepage" class="btn btn-secondary">回到首頁</a>
     </div>
   </div>
 </body>

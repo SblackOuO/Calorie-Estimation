@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>每日營養攝取日曆</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 20px;
+      background-color: #f0f2f5;
+    }
+    #calendar {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    /* 彈窗樣式 */
+    #detailModal {
+      display: none;
+      position: fixed;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.25);
+      padding: 20px;
+      z-index: 1001;
+    }
+    #detailModal h3 {
+      margin-top: 0;
+    }
+    #modalOverlay {
+      display: none;
+      position: fixed;
+      top:0; left:0; right:0; bottom:0;
+      background: rgba(0,0,0,0.4);
+      z-index: 1000;
+    }
+    button.close-btn {
+      background: #e74c3c;
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      float: right;
+      font-weight: bold;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    .suggestions {
+      margin-top: 12px;
+      padding: 10px;
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      border-radius: 4px;
+      color: #856404;
+      font-weight: 600;
+    }
+    .back-home-wrapper {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .back-home-btn {
+      display: inline-block;
+      padding: 10px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #007bff;
+      background-color: #ffffff;
+      border: 2px solid #007bff;
+      border-radius: 30px;
+      text-decoration: none;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      transition: all 0.2s ease-in-out;
+    }
+
+    .back-home-btn:hover {
+      background-color: #007bff;
+      color: #ffffff;
+      box-shadow: 0 6px 12px rgba(0,123,255,0.25);
+      transform: translateY(-1px);
+    }
+
+  </style>
+</head>
+<body>
+  <div class="back-home-wrapper">
+  <a href="/homepage" class="back-home-btn">⬅️ 回首頁</a>
+  </div>
+
+  <h1 style="text-align:center; margin-bottom: 20px;">每日營養攝取日曆</h1>
+  <div id="calendar"></div>
+
+
+  <!-- 彈窗 -->
+  <div id="modalOverlay"></div>
+  <div id="detailModal">
+    <button class="close-btn" id="closeModal">X</button>
+    <h3 id="modalDate">日期</h3>
+    <div id="modalContent">
+      <p>載入中...</p>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const calendarEl = document.getElementById('calendar');
+      const modal = document.getElementById('detailModal');
+      const overlay = document.getElementById('modalOverlay');
+      const modalContent = document.getElementById('modalContent');
+      const modalDate = document.getElementById('modalDate');
+      const closeBtn = document.getElementById('closeModal');
+
+      // 初始化 FullCalendar
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'zh-tw',
+        firstDay: 1,
+        events: '/calendar-data',  // 取得該月營養攝取總熱量事件
+        dateClick: function(info) {
+          // 點日期時撈該日詳細資料
+          fetch(`/calendar-detail?date=${info.dateStr}`)
+            .then(res => res.json())
+            .then(data => {
+              modalDate.textContent = `日期：${info.dateStr}`;
+              if (data.error) {
+                modalContent.innerHTML = `<p style="color:red;">錯誤：${data.error}</p>`;
+              } else if(data.msg) {
+                modalContent.innerHTML = `<p>${data.msg}</p>`;
+              } else {
+                let html = '<ul>';
+                data.records.forEach(rec => {
+                  html += `<li><strong>${rec.food_name || '食物'}：</strong>
+                    熱量: ${rec.calories || 0} kcal，
+                    蛋白質: ${rec.protein || 0} g，
+                    脂肪: ${rec.fats || 0} g，
+                    碳水化合物: ${rec.carbohydrates || 0} g，
+                    膳食纖維: ${rec.fiber || 0} g，
+                    糖: ${rec.sugars || 0} g，
+                    鈉: ${rec.sodium || 0} mg
+                  </li>`;
+                });
+                html += '</ul>';
+
+                if(data.suggestions && data.suggestions.length > 0){
+                  html += '<div class="suggestions"><strong>營養建議：</strong><ul>';
+                  data.suggestions.forEach(s => {
+                    html += `<li>${s}</li>`;
+                  });
+                  html += '</ul></div>';
+                }
+
+                modalContent.innerHTML = html;
+              }
+              overlay.style.display = 'block';
+              modal.style.display = 'block';
+            })
+            .catch(err => {
+              modalDate.textContent = `日期：${info.dateStr}`;
+              modalContent.innerHTML = `<p style="color:red;">無法取得資料</p>`;
+              overlay.style.display = 'block';
+              modal.style.display = 'block';
+            });
+        }
+      });
+
+      calendar.render();
+
+      // 關閉彈窗
+      function closeModal() {
+        modal.style.display = 'none';
+        overlay.style.display = 'none';
+      }
+
+      closeBtn.addEventListener('click', closeModal);
+      overlay.addEventListener('click', closeModal);
+    });
+  </script>
+
+</body>
+</html>
