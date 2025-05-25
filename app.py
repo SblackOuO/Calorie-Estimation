@@ -188,6 +188,9 @@ def detect():
 
         image.save(os.path.join(UPLOAD_FOLDER, 'result.jpg'))
 
+        date_str = request.form.get('date')  # 格式應為 'YYYY-MM-DD'
+        meal = request.form.get('meal')      # 早餐、午餐、晚餐、其他
+
         # 儲存每日攝取資料到資料庫
         user_id = session.get('user_id')
         if user_id:
@@ -196,20 +199,12 @@ def detect():
                 with conn.cursor() as cursor:
                     sql = """
                         INSERT INTO daily_nutrition 
-                        (user_id, date, calories, protein, fats, carbohydrates, fiber, sugars, sodium)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON DUPLICATE KEY UPDATE
-                          calories = calories + VALUES(calories),
-                          protein = protein + VALUES(protein),
-                          fats = fats + VALUES(fats),
-                          carbohydrates = carbohydrates + VALUES(carbohydrates),
-                          fiber = fiber + VALUES(fiber),
-                          sugars = sugars + VALUES(sugars),
-                          sodium = sodium + VALUES(sodium)
+                        (user_id, date, meal, calories, protein, fats, carbohydrates, fiber, sugars, sodium)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """
-                    today = date.today()
+                    #today = date.today()
                     cursor.execute(sql, (
-                        user_id, today,
+                        user_id, date_str, meal,
                         total_nutrition['calories'],
                         total_nutrition['protein'],
                         total_nutrition['fats'],
@@ -241,10 +236,10 @@ def calendar_data():
             sql = """
             SELECT date, SUM(calories) AS total_calories
             FROM daily_nutrition
-            WHERE date BETWEEN %s AND %s
+            WHERE (date BETWEEN %s AND %s) AND user_id = %s
             GROUP BY date
             """
-            cursor.execute(sql, (start, end))
+            cursor.execute(sql, (start, end, session['user_id']))
             rows = cursor.fetchall()
             
             events = []
@@ -268,9 +263,9 @@ def calendar_detail():
     try:
         with conn.cursor() as cursor:
             sql = """
-            SELECT * FROM daily_nutrition WHERE date = %s
+            SELECT * FROM daily_nutrition as d WHERE d.date = %s and d.user_id = %s
             """
-            cursor.execute(sql, (date_str,))
+            cursor.execute(sql, (date_str, session['user_id']))
             records = cursor.fetchall()
 
             sql2 = """
@@ -282,6 +277,8 @@ def calendar_detail():
 
             if not records:
                 return jsonify({'msg': '該日無攝取紀錄'})
+            
+            
 
             # 你可在這邊計算營養建議判斷
             # 這裡簡單示範：若蛋白質 < 50g 就建議補充蛋白質

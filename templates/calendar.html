@@ -143,7 +143,7 @@
               } else {
                 let html = '<ul>';
                 data.records.forEach(rec => {
-                  html += `<li><strong>${rec.food_name || '食物'}：</strong>
+                  html += `<li><strong>${rec.meal || '食物'}：</strong>
                     熱量: ${rec.calories || 0} kcal，
                     蛋白質: ${rec.protein || 0} g，
                     脂肪: ${rec.fats || 0} g，
