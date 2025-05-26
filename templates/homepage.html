@@ -28,7 +28,7 @@
       right: 20px;
     }
     .calendar-btn {
-      right: 120px;
+      right: 110px;
     }
     .form-label {
       font-weight: 600;
@@ -44,6 +44,12 @@
       font-weight: bold;
       color: #333;
     }
+    .profile-btn {
+      position: absolute;
+      top: 20px;
+      right: 220px;
+    }
+
   </style>
 </head>
 <body>
@@ -52,6 +58,7 @@
   <form method="POST" action="/logout" class="logout-btn">
     <button type="submit" class="btn btn-outline-danger">登出</button>
   </form>
+  <a href="/profile" class="btn btn-outline-secondary profile-btn">個人資料</a>
   <a href="/calendar" class="btn btn-outline-primary calendar-btn">行事曆</a>
   {% endif %}
 

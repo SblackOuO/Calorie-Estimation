@@ -229,6 +229,16 @@ def detect():
                 
                 base_cal = estimate_calorie(food_type)
                 nutrition = get_nutrition_info(food_type)
+                if nutrition == None : 
+                    nutrition =  {
+                        'weight': 0.0, 
+                        'calories': 0.0, 
+                        'protein': 0.0, 
+                        'carbohydrates': 0.0, 
+                        'fats': 0.0, 
+                        'fiber': 0.0, 
+                        'sugars': 0.0, 
+                        'sodium': 0.0}
 
                 for key in total_nutrition:
                     total_nutrition[key] += nutrition.get(key, 0)
@@ -289,30 +299,40 @@ def calendar_detail():
     date_str = request.args.get('date')  # yyyy-mm-dd
     if not date_str:
         return jsonify({'error': '缺少日期參數'}), 400
+    if 'user_id' not in session:
+        return jsonify({'error': '未登入，請先登入帳號'}), 401
 
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
+            # 查該日所有紀錄
             sql = """
-            SELECT * FROM daily_nutrition as d WHERE d.date = %s and d.user_id = %s
+            SELECT * FROM daily_nutrition WHERE date = %s AND user_id = %s
             """
             cursor.execute(sql, (date_str, session['user_id']))
             records = cursor.fetchall()
 
-            sql2 = """
-            SELECT * FROM users WHERE id = %s
-            """
+            # 查使用者資料
+            sql2 = "SELECT * FROM users WHERE id = %s"
             cursor.execute(sql2, (session['user_id'],))
             user_record = cursor.fetchone()
-            demand = calculate_demand(user_record.get('height',0), user_record.get('weight',0), user_record.get('age',0), user_record.get('sex',0), user_record.get('activity_level',0))
+
+            if not user_record:
+                return jsonify({'error': '找不到使用者資料'}), 404
+
+            # 修正欄位名稱
+            demand = calculate_demand(
+                user_record.get('height_cm', 0),
+                user_record.get('weight_kg', 0),
+                user_record.get('age', 0),
+                user_record.get('gender', ''),
+                user_record.get('activity_level', '')
+            )
 
             if not records:
                 return jsonify({'msg': '該日無攝取紀錄'})
-            
-            
 
-            # 你可在這邊計算營養建議判斷
-            # 這裡簡單示範：若蛋白質 < 50g 就建議補充蛋白質
+            # 加總
             calories_sum = sum(r.get('calories', 0) for r in records)
             protein_sum = sum(r.get('protein', 0) for r in records)
             fats_sum = sum(r.get('fats', 0) for r in records)
@@ -344,6 +364,62 @@ def calendar_detail():
             })
     finally:
         conn.close()
+
+@app.route('/profile')
+def profile():
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('index'))
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            # 查詢基本資料
+            cursor.execute("SELECT username, height_cm, weight_kg, gender, age, activity_level FROM users WHERE id = %s", (user_id,))
+            user_data = cursor.fetchone()
+
+            if not user_data:
+                return "找不到使用者資料", 404
+
+            # 計算 BMR
+            if user_data['gender'] == 'male':
+                bmr = 66 + (13.7 * user_data['weight_kg']) + (5 * user_data['height_cm']) - (6.8 * user_data['age'])
+            else:
+                bmr = 655 + (9.6 * user_data['weight_kg']) + (1.8 * user_data['height_cm']) - (4.7 * user_data['age'])
+
+            # 計算 TDEE (假設活動係數 1.55 中等活動量)
+            activity_map = {
+                'less': 1.2,
+                'low': 1.375,
+                'medium': 1.55,
+                'high': 1.725,
+                'extreme_high': 1.9
+            }
+            activity_factor = activity_map.get(user_data['activity_level'], 1.2)
+
+            tdee = bmr * activity_factor
+
+            # 查詢當日總攝取營養
+            import datetime
+            today = datetime.date.today().strftime("%Y-%m-%d")
+            cursor.execute("""
+                SELECT 
+                    COALESCE(SUM(calories),0) as calories,
+                    COALESCE(SUM(protein),0) as protein,
+                    COALESCE(SUM(fats),0) as fats,
+                    COALESCE(SUM(carbohydrates),0) as carbohydrates,
+                    COALESCE(SUM(fiber),0) as fiber,
+                    COALESCE(SUM(sugars),0) as sugars,
+                    COALESCE(SUM(sodium),0) as sodium
+                FROM daily_nutrition
+                WHERE user_id = %s AND date = %s
+            """, (user_id, today))
+            daily_nutrition = cursor.fetchone()
+
+    finally:
+        conn.close()
+
+    return render_template('profile.html', user=user_data, bmr=bmr, tdee=tdee, daily=daily_nutrition)
 
 
 if __name__ == '__main__':

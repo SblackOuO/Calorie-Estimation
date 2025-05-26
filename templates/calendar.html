@@ -14,30 +14,58 @@
     }
     #calendar {
       max-width: 900px;
+      width: 100%;
       margin: 0 auto;
       background: white;
       border-radius: 8px;
       padding: 10px;
       box-shadow: 0 0 15px rgba(0,0,0,0.1);
     }
-    /* 彈窗樣式 */
+    .fc {
+      width: 100% !important;
+    }
+    .fc .fc-daygrid-day-frame {
+      min-height: 100px;
+    }
+
+    .header-wrapper {
+      position: relative;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .header-wrapper h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+    .home-btn {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 8px 16px;
+      background-color: #007bff;
+      color: white;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background-color 0.3s ease;
+    }
+    .home-btn:hover {
+      background-color: #0056b3;
+    }
+
     #detailModal {
       display: none;
       position: fixed;
       top: 10%;
       left: 50%;
       transform: translateX(-50%);
-      width: 400px;
-      max-height: 80vh;
-      overflow-y: auto;
+      width: 1000px;
       background: white;
       border-radius: 8px;
       box-shadow: 0 0 20px rgba(0,0,0,0.25);
       padding: 20px;
       z-index: 1001;
-    }
-    #detailModal h3 {
-      margin-top: 0;
     }
     #modalOverlay {
       display: none;
@@ -56,8 +84,21 @@
       float: right;
       font-weight: bold;
     }
-    ul {
-      padding-left: 20px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 12px 16px;
+      text-align: center;
+      min-width: 80px;
+      white-space: nowrap;
+    }
+    table thead {
+      background-color: #f8f9fa;
+      font-weight: bold;
     }
     .suggestions {
       margin-top: 12px;
@@ -68,44 +109,17 @@
       color: #856404;
       font-weight: 600;
     }
-    .back-home-wrapper {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    .back-home-btn {
-      display: inline-block;
-      padding: 10px 24px;
-      font-size: 16px;
-      font-weight: 600;
-      color: #007bff;
-      background-color: #ffffff;
-      border: 2px solid #007bff;
-      border-radius: 30px;
-      text-decoration: none;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-      transition: all 0.2s ease-in-out;
-    }
-
-    .back-home-btn:hover {
-      background-color: #007bff;
-      color: #ffffff;
-      box-shadow: 0 6px 12px rgba(0,123,255,0.25);
-      transform: translateY(-1px);
-    }
-
   </style>
 </head>
 <body>
-  <div class="back-home-wrapper">
-  <a href="/homepage" class="back-home-btn">⬅️ 回首頁</a>
+
+  <div class="header-wrapper">
+    <h1>每日營養攝取日曆</h1>
+    <a href="/homepage" class="home-btn">回首頁</a>
   </div>
 
-  <h1 style="text-align:center; margin-bottom: 20px;">每日營養攝取日曆</h1>
   <div id="calendar"></div>
 
-
-  <!-- 彈窗 -->
   <div id="modalOverlay"></div>
   <div id="detailModal">
     <button class="close-btn" id="closeModal">X</button>
@@ -124,14 +138,13 @@
       const modalDate = document.getElementById('modalDate');
       const closeBtn = document.getElementById('closeModal');
 
-      // 初始化 FullCalendar
       const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         locale: 'zh-tw',
         firstDay: 1,
-        events: '/calendar-data',  // 取得該月營養攝取總熱量事件
+        height: 'auto',
+        events: '/calendar-data',
         dateClick: function(info) {
-          // 點日期時撈該日詳細資料
           fetch(`/calendar-detail?date=${info.dateStr}`)
             .then(res => res.json())
             .then(data => {
@@ -141,30 +154,46 @@
               } else if(data.msg) {
                 modalContent.innerHTML = `<p>${data.msg}</p>`;
               } else {
-                let html = '<ul>';
-                data.records.forEach(rec => {
-                  html += `<li><strong>${rec.meal || '食物'}：</strong>
-                    熱量: ${rec.calories || 0} kcal，
-                    蛋白質: ${rec.protein || 0} g，
-                    脂肪: ${rec.fats || 0} g，
-                    碳水化合物: ${rec.carbohydrates || 0} g，
-                    膳食纖維: ${rec.fiber || 0} g，
-                    糖: ${rec.sugars || 0} g，
-                    鈉: ${rec.sodium || 0} mg
-                  </li>`;
+                const mealMap = {};
+                data.records.forEach(r => {
+                  const meal = r.meal || '未指定';
+                  if (!mealMap[meal]) {
+                    mealMap[meal] = {calories:0, protein:0, fats:0, carbohydrates:0, fiber:0, sugars:0, sodium:0};
+                  }
+                  mealMap[meal].calories += r.calories || 0;
+                  mealMap[meal].protein += r.protein || 0;
+                  mealMap[meal].fats += r.fats || 0;
+                  mealMap[meal].carbohydrates += r.carbohydrates || 0;
+                  mealMap[meal].fiber += r.fiber || 0;
+                  mealMap[meal].sugars += r.sugars || 0;
+                  mealMap[meal].sodium += r.sodium || 0;
                 });
-                html += '</ul>';
 
-                if(data.suggestions && data.suggestions.length > 0){
+                let html = '<table><thead><tr><th>餐別</th><th>熱量 (kcal)</th><th>蛋白質 (g)</th><th>脂肪 (g)</th><th>碳水 (g)</th><th>纖維 (g)</th><th>糖 (g)</th><th>鈉 (mg)</th></tr></thead><tbody>';
+                for (let meal in mealMap) {
+                  const r = mealMap[meal];
+                  html += `<tr>
+                    <td>${meal}</td>
+                    <td>${r.calories}</td>
+                    <td>${r.protein}</td>
+                    <td>${r.fats}</td>
+                    <td>${r.carbohydrates}</td>
+                    <td>${r.fiber}</td>
+                    <td>${r.sugars}</td>
+                    <td>${r.sodium}</td>
+                  </tr>`;
+                }
+                html += '</tbody></table>';
+
+                if(data.suggestions && data.suggestions.length > 0) {
                   html += '<div class="suggestions"><strong>營養建議：</strong><ul>';
-                  data.suggestions.forEach(s => {
-                    html += `<li>${s}</li>`;
-                  });
+                  data.suggestions.forEach(s => { html += `<li>${s}</li>`; });
                   html += '</ul></div>';
                 }
 
                 modalContent.innerHTML = html;
               }
+
               overlay.style.display = 'block';
               modal.style.display = 'block';
             })
@@ -179,16 +208,15 @@
 
       calendar.render();
 
-      // 關閉彈窗
-      function closeModal() {
+      closeBtn.addEventListener('click', () => {
         modal.style.display = 'none';
         overlay.style.display = 'none';
-      }
-
-      closeBtn.addEventListener('click', closeModal);
-      overlay.addEventListener('click', closeModal);
+      });
+      overlay.addEventListener('click', () => {
+        modal.style.display = 'none';
+        overlay.style.display = 'none';
+      });
     });
   </script>
-
 </body>
 </html>
