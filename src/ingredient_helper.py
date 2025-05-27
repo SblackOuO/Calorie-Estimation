@@ -11,11 +11,11 @@ def ask_user_ingredients(food_type):
 
 def refine_calorie(base_calorie, ingredients):
     delta = 0
-    if ingredients["meat"]:
+    if "meat" in ingredients:
         delta += 100
-    if ingredients["egg"]:
+    if "egg" in ingredients:
         delta += 70
-    if ingredients["vegetable"]:
+    if "vegetable" in ingredients:
         delta += 30
     return base_calorie + delta
 
