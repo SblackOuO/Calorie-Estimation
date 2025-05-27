@@ -30,6 +30,16 @@
     .calendar-btn {
       right: 110px;
     }
+    .profile-btn {
+      position: absolute;
+      top: 20px;
+      right: 220px;
+    }
+    .daily-btn {
+      position: absolute;
+      top: 20px;
+      right: 350px;
+    }
     .form-label {
       font-weight: 600;
     }
@@ -44,11 +54,6 @@
       font-weight: bold;
       color: #333;
     }
-    .profile-btn {
-      position: absolute;
-      top: 20px;
-      right: 220px;
-    }
 
   </style>
 </head>
@@ -58,6 +63,7 @@
   <form method="POST" action="/logout" class="logout-btn">
     <button type="submit" class="btn btn-outline-danger">登出</button>
   </form>
+  <a href="/daily-log" class="btn btn-outline-success daily-btn">每日紀錄</a>
   <a href="/profile" class="btn btn-outline-secondary profile-btn">個人資料</a>
   <a href="/calendar" class="btn btn-outline-primary calendar-btn">行事曆</a>
   {% endif %}

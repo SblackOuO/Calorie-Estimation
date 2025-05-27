@@ -1,3 +1,4 @@
+import pathlib
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session
 from src.classifier import FoodClassifier
 from src.detector import FoodDetector
@@ -10,6 +11,7 @@ import os
 import pymysql
 import hashlib
 from datetime import date
+import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from PIL import Image, ImageDraw
 
@@ -31,7 +33,7 @@ def get_db_connection():
 # ==== 初始化模型 ====
 TRAIN_DATA_DIR_FOR_CLASSIFIER = os.path.join('data', 'images') # 根據您的實際路徑修改
 classifier = FoodClassifier(
-    model_path='models/food_classifier.pt',
+    model_path='models/efficientnet_b0_food_v2_100_classes.pt',
     train_dir=TRAIN_DATA_DIR_FOR_CLASSIFIER # 提供這個參數
 )
 detector = FoodDetector(model_path='models/best.pt')
@@ -375,32 +377,35 @@ def profile():
     try:
         with conn.cursor(pymysql.cursors.DictCursor) as cursor:
             # 查詢基本資料
-            cursor.execute("SELECT username, height_cm, weight_kg, gender, age, activity_level FROM users WHERE id = %s", (user_id,))
+            cursor.execute("""
+                SELECT username, height_cm, gender, age, activity_level, weight_kg as initial_weight 
+                FROM users WHERE id = %s
+            """, (user_id,))
             user_data = cursor.fetchone()
 
-            if not user_data:
-                return "找不到使用者資料", 404
+            # 查詢 daily_log 的最新體重紀錄
+            cursor.execute("""
+                SELECT weight FROM daily_log 
+                WHERE user_id = %s ORDER BY date DESC LIMIT 1
+            """, (user_id,))
+            latest_log = cursor.fetchone()
 
-            # 計算 BMR
-            if user_data['gender'] == 'male':
-                bmr = 66 + (13.7 * user_data['weight_kg']) + (5 * user_data['height_cm']) - (6.8 * user_data['age'])
+            # 決定最終體重
+            if latest_log and latest_log['weight']:
+                final_weight = latest_log['weight']
             else:
-                bmr = 655 + (9.6 * user_data['weight_kg']) + (1.8 * user_data['height_cm']) - (4.7 * user_data['age'])
+                final_weight = user_data['initial_weight']
 
-            # 計算 TDEE (假設活動係數 1.55 中等活動量)
-            activity_map = {
-                'less': 1.2,
-                'low': 1.375,
-                'medium': 1.55,
-                'high': 1.725,
-                'extreme_high': 1.9
-            }
-            activity_factor = activity_map.get(user_data['activity_level'], 1.2)
+            # BMR 計算
+            if user_data['gender'] == '男':
+                bmr = 66 + (13.7 * final_weight) + (5 * user_data['height_cm']) - (6.8 * user_data['age'])
+            else:
+                bmr = 655 + (9.6 * final_weight) + (1.8 * user_data['height_cm']) - (4.7 * user_data['age'])
 
-            tdee = bmr * activity_factor
+            activity_map = {'less': 1.2, 'low': 1.375, 'medium': 1.55, 'high': 1.725, 'extreme_high': 1.9}
+            tdee = bmr * activity_map.get(user_data['activity_level'], 1.2)
 
-            # 查詢當日總攝取營養
-            import datetime
+            # 當日總攝取
             today = datetime.date.today().strftime("%Y-%m-%d")
             cursor.execute("""
                 SELECT 
@@ -419,7 +424,128 @@ def profile():
     finally:
         conn.close()
 
+    # 將 final_weight 傳到模板
+    user_data['final_weight'] = final_weight
+
     return render_template('profile.html', user=user_data, bmr=bmr, tdee=tdee, daily=daily_nutrition)
+
+@app.route('/daily-log', methods=['GET', 'POST'])
+def daily_log():
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('index'))
+
+    conn = get_db_connection()
+    today = datetime.date.today().strftime("%Y-%m-%d")
+    force = request.args.get('force')
+    
+    # 如果沒有強制要求重新輸入，且有當日紀錄 ➔ 跳轉
+    if not force:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM daily_log WHERE user_id=%s AND date=%s", (user_id, today))
+            existing = cursor.fetchone()
+        if existing:
+            conn.close()
+            return redirect(url_for('nutrition_suggestion'))
+
+    # 先檢查是否有當日紀錄
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM daily_log WHERE user_id=%s AND date=%s", (user_id, today))
+        existing = cursor.fetchone()
+
+    # 處理 POST 表單
+    if request.method == 'POST':
+        weight = float(request.form.get('weight'))
+        goal = request.form.get('goal') or 'maintain'
+        session['goal'] = goal
+
+        with conn.cursor() as cursor:
+            # 更新或新增紀錄
+            cursor.execute("SELECT * FROM daily_log WHERE user_id=%s AND date=%s", (user_id, today))
+            existing = cursor.fetchone()
+            if existing:
+                cursor.execute("UPDATE daily_log SET weight=%s, goal=%s WHERE user_id=%s AND date=%s",
+                               (weight, goal, user_id, today))
+            else:
+                cursor.execute("INSERT INTO daily_log (user_id, date, weight, goal) VALUES (%s, %s, %s, %s)",
+                               (user_id, today, weight, goal))
+            conn.commit()
+
+        conn.close()
+        return redirect(url_for('nutrition_suggestion'))
+
+    conn.close()
+    return render_template('daily_log.html', today=today)
+
+@app.route('/nutrition-suggestion', methods=['GET', 'POST'])
+def nutrition_suggestion():
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('index'))
+
+    conn = get_db_connection()
+    
+    today = datetime.date.today().strftime("%Y-%m-%d")
+
+    with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+        # 查詢基本資料
+        cursor.execute("SELECT height_cm, gender, age, activity_level FROM users WHERE id=%s", (user_id,))
+        user = cursor.fetchone()
+
+        # 查詢體重 & 目標
+        cursor.execute("SELECT weight, goal FROM daily_log WHERE user_id=%s AND date=%s", (user_id, today))
+        log = cursor.fetchone()
+        weight = log['weight']
+        goal = log['goal']
+
+        # 處理目標選擇改變
+        if request.method == 'POST':
+            goal = request.form.get('goal')
+            cursor.execute("UPDATE daily_log SET goal=%s WHERE user_id=%s AND date=%s", (goal, user_id, today))
+            conn.commit()
+
+        # BMR & TDEE 計算
+        if user['gender'] == '男':
+            bmr = 66 + (13.7 * weight) + (5 * user['height_cm']) - (6.8 * user['age'])
+        else:
+            bmr = 655 + (9.6 * weight) + (1.8 * user['height_cm']) - (4.7 * user['age'])
+
+        activity_map = {'less': 1.2, 'low': 1.375, 'medium': 1.55, 'high': 1.725, 'extreme_high': 1.9}
+        tdee = bmr * activity_map.get(user['activity_level'], 1.2)
+
+        # 營養計算
+        goal_adjust = {'cut': -500, 'maintain': 0, 'bulk': +300}
+        target_cal = tdee + goal_adjust.get(goal, 0)
+        protein_per_kg = {'cut': 2.0, 'maintain': 1.6, 'bulk': 2.2}.get(goal, 1.6)
+        protein_g = weight * protein_per_kg
+        protein_cal = protein_g * 4
+        fat_ratio = {'cut': 0.25, 'maintain': 0.30, 'bulk': 0.25}.get(goal, 0.30)
+        fat_cal = target_cal * fat_ratio
+        fat_g = fat_cal / 9
+        carb_cal = target_cal - (protein_cal + fat_cal)
+        carb_g = carb_cal / 4
+
+        nutrition_target = {
+            'calories': round(target_cal, 2),
+            'protein': round(protein_g, 2),
+            'fats': round(fat_g, 2),
+            'carbs': round(carb_g, 2)
+        }
+
+        # 查詢當日攝取
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(calories),0) as calories,
+                COALESCE(SUM(protein),0) as protein,
+                COALESCE(SUM(fats),0) as fats,
+                COALESCE(SUM(carbohydrates),0) as carbohydrates
+            FROM daily_nutrition
+            WHERE user_id=%s AND date=%s
+        """, (user_id, today))
+        daily = cursor.fetchone()
+
+    conn.close()
+    return render_template('nutrition_suggestion.html', nutrition=nutrition_target, daily=daily, goal=goal)
 
 
 if __name__ == '__main__':

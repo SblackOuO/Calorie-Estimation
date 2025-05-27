@@ -1,5 +1,5 @@
 import pathlib
-#pathlib.WindowsPath = pathlib.PosixPath   
+pathlib.WindowsPath = pathlib.PosixPath   
 import os
 from PIL import Image, ImageDraw
 
@@ -90,7 +90,7 @@ def recommend_food():
 
 # ==== 主程式入口 ====
 if __name__ == "__main__":
-    test_image_path = 'test_images/example4.jpg'
+    test_image_path = 'hamburger_donut.jpeg'
     process_image(test_image_path)
 
     recommend_food()
