@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>每日營養攝取日曆</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 20px;
+      background-color: #f0f2f5;
+    }
+    #calendar {
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    .fc {
+      width: 100% !important;
+    }
+    .fc .fc-daygrid-day-frame {
+      min-height: 100px;
+    }
+
+    .header-wrapper {
+      position: relative;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .header-wrapper h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+    .home-btn {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 8px 16px;
+      background-color: #007bff;
+      color: white;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background-color 0.3s ease;
+    }
+    .home-btn:hover {
+      background-color: #0056b3;
+    }
+
+    #detailModal {
+      display: none;
+      position: fixed;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1000px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.25);
+      padding: 20px;
+      z-index: 1001;
+    }
+    #modalOverlay {
+      display: none;
+      position: fixed;
+      top:0; left:0; right:0; bottom:0;
+      background: rgba(0,0,0,0.4);
+      z-index: 1000;
+    }
+    button.close-btn {
+      background: #e74c3c;
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      float: right;
+      font-weight: bold;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 12px 16px;
+      text-align: center;
+      min-width: 80px;
+      white-space: nowrap;
+    }
+    table thead {
+      background-color: #f8f9fa;
+      font-weight: bold;
+    }
+    .suggestions {
+      margin-top: 12px;
+      padding: 10px;
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      border-radius: 4px;
+      color: #856404;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-wrapper">
+    <h1>每日營養攝取日曆</h1>
+    <a href="/homepage" class="home-btn">回首頁</a>
+  </div>
+
+  <div id="calendar"></div>
+
+  <div id="modalOverlay"></div>
+  <div id="detailModal">
+    <button class="close-btn" id="closeModal">X</button>
+    <h3 id="modalDate">日期</h3>
+    <div id="modalContent">
+      <p>載入中...</p>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const calendarEl = document.getElementById('calendar');
+      const modal = document.getElementById('detailModal');
+      const overlay = document.getElementById('modalOverlay');
+      const modalContent = document.getElementById('modalContent');
+      const modalDate = document.getElementById('modalDate');
+      const closeBtn = document.getElementById('closeModal');
+
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'zh-tw',
+        firstDay: 1,
+        height: 'auto',
+        events: '/calendar-data',
+        dateClick: function(info) {
+          fetch(`/calendar-detail?date=${info.dateStr}`)
+            .then(res => res.json())
+            .then(data => {
+              modalDate.textContent = `日期：${info.dateStr}`;
+              if (data.error) {
+                modalContent.innerHTML = `<p style="color:red;">錯誤：${data.error}</p>`;
+              } else if(data.msg) {
+                modalContent.innerHTML = `<p>${data.msg}</p>`;
+              } else {
+                const mealMap = {};
+                data.records.forEach(r => {
+                  const meal = r.meal || '未指定';
+                  if (!mealMap[meal]) {
+                    mealMap[meal] = {calories:0, protein:0, fats:0, carbohydrates:0, fiber:0, sugars:0, sodium:0};
+                  }
+                  mealMap[meal].calories += r.calories || 0;
+                  mealMap[meal].protein += r.protein || 0;
+                  mealMap[meal].fats += r.fats || 0;
+                  mealMap[meal].carbohydrates += r.carbohydrates || 0;
+                  mealMap[meal].fiber += r.fiber || 0;
+                  mealMap[meal].sugars += r.sugars || 0;
+                  mealMap[meal].sodium += r.sodium || 0;
+                });
+
+                let html = '<table><thead><tr><th>餐別</th><th>熱量 (kcal)</th><th>蛋白質 (g)</th><th>脂肪 (g)</th><th>碳水 (g)</th><th>纖維 (g)</th><th>糖 (g)</th><th>鈉 (mg)</th></tr></thead><tbody>';
+                for (let meal in mealMap) {
+                  const r = mealMap[meal];
+                  html += `<tr>
+                    <td>${meal}</td>
+                    <td>${r.calories}</td>
+                    <td>${r.protein}</td>
+                    <td>${r.fats}</td>
+                    <td>${r.carbohydrates}</td>
+                    <td>${r.fiber}</td>
+                    <td>${r.sugars}</td>
+                    <td>${r.sodium}</td>
+                  </tr>`;
+                }
+                html += '</tbody></table>';
+
+                if(data.suggestions && data.suggestions.length > 0) {
+                  html += '<div class="suggestions"><strong>營養建議：</strong><ul>';
+                  data.suggestions.forEach(s => { html += `<li>${s}</li>`; });
+                  html += '</ul></div>';
+                }
+
+                modalContent.innerHTML = html;
+              }
+
+              overlay.style.display = 'block';
+              modal.style.display = 'block';
+            })
+            .catch(err => {
+              modalDate.textContent = `日期：${info.dateStr}`;
+              modalContent.innerHTML = `<p style="color:red;">無法取得資料</p>`;
+              overlay.style.display = 'block';
+              modal.style.display = 'block';
+            });
+        }
+      });
+
+      calendar.render();
+
+      closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        overlay.style.display = 'none';
+      });
+      overlay.addEventListener('click', () => {
+        modal.style.display = 'none';
+        overlay.style.display = 'none';
+      });
+    });
+  </script>
+</body>
+</html>
