@@ -62,4 +62,5 @@ def get_nutrition_info(food_type: str) -> dict:
     """
     Returns the full nutrition dict for a food_type per serving, or None if missing.
     """
+    
     return _nutrition_table.get(food_type)
