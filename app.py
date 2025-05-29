@@ -1,4 +1,3 @@
-import pathlib
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session
 from src.classifier import FoodClassifier
 from src.detector import FoodDetector
@@ -6,14 +5,17 @@ from src.calorie_estimator import estimate_calorie, get_nutrition_info
 from src.recommender import recommend_by_culture
 from src.ingredient_helper import ask_user_ingredients, refine_calorie
 from src.utils import load_image, print_result, calculate_demand
+from werkzeug.security import generate_password_hash, check_password_hash
+from PIL import Image, ImageDraw
+from datetime import date
+import datetime
+import pathlib
+import itertools
 import shutil
 import os
 import pymysql
 import hashlib
-from datetime import date
-import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
-from PIL import Image, ImageDraw
+import pandas as pd
 
 app = Flask(__name__)
 app.secret_key = '1234567890'  # 用來加密 session，請自行修改
@@ -484,36 +486,29 @@ def nutrition_suggestion():
         return redirect(url_for('index'))
 
     conn = get_db_connection()
-    
     today = datetime.date.today().strftime("%Y-%m-%d")
 
     with conn.cursor(pymysql.cursors.DictCursor) as cursor:
-        # 查詢基本資料
         cursor.execute("SELECT height_cm, gender, age, activity_level FROM users WHERE id=%s", (user_id,))
         user = cursor.fetchone()
 
-        # 查詢體重 & 目標
         cursor.execute("SELECT weight, goal FROM daily_log WHERE user_id=%s AND date=%s", (user_id, today))
         log = cursor.fetchone()
         weight = log['weight']
         goal = log['goal']
 
-        # 處理目標選擇改變
         if request.method == 'POST':
             goal = request.form.get('goal')
             cursor.execute("UPDATE daily_log SET goal=%s WHERE user_id=%s AND date=%s", (goal, user_id, today))
             conn.commit()
 
-        # BMR & TDEE 計算
         if user['gender'] == '男':
             bmr = 66 + (13.7 * weight) + (5 * user['height_cm']) - (6.8 * user['age'])
         else:
             bmr = 655 + (9.6 * weight) + (1.8 * user['height_cm']) - (4.7 * user['age'])
-
         activity_map = {'less': 1.2, 'low': 1.375, 'medium': 1.55, 'high': 1.725, 'extreme_high': 1.9}
         tdee = bmr * activity_map.get(user['activity_level'], 1.2)
 
-        # 營養計算
         goal_adjust = {'cut': -500, 'maintain': 0, 'bulk': +300}
         target_cal = tdee + goal_adjust.get(goal, 0)
         protein_per_kg = {'cut': 2.0, 'maintain': 1.6, 'bulk': 2.2}.get(goal, 1.6)
@@ -532,7 +527,7 @@ def nutrition_suggestion():
             'carbs': round(carb_g, 2)
         }
 
-        # 查詢當日攝取
+        # 查每日總攝取
         cursor.execute("""
             SELECT 
                 COALESCE(SUM(calories),0) as calories,
@@ -544,8 +539,60 @@ def nutrition_suggestion():
         """, (user_id, today))
         daily = cursor.fetchone()
 
+        # 查每餐攝取
+        cursor.execute("""
+            SELECT meal, SUM(calories) as total_cal
+            FROM daily_nutrition
+            WHERE user_id = %s AND date = %s
+            GROUP BY meal
+        """, (user_id, today))
+        meal_intake = {row['meal']: row['total_cal'] for row in cursor.fetchall()}
+
     conn.close()
-    return render_template('nutrition_suggestion.html', nutrition=nutrition_target, daily=daily, goal=goal)
+
+    # 每餐目標熱量
+    meal_ratio = {'早餐': 0.25, '午餐': 0.35, '晚餐': 0.30, '點心': 0.10}
+    meal_targets = {meal: round(target_cal * ratio, 2) for meal, ratio in meal_ratio.items()}
+
+    # 推薦食物
+    # 讀取 CSV
+    df = pd.read_csv('nutrition.csv')
+
+    recommendations = {}
+    recommendation_messages = {}
+    daily_over = daily['calories'] >= target_cal
+
+    if daily_over:
+        for meal in meal_ratio:
+            recommendation_messages[meal] = "今日攝取總熱量已超標，建議暫停進食！"
+            recommendations[meal] = []
+    else:
+        for meal, target in meal_targets.items():
+            current = meal_intake.get(meal, 0)
+            if current == 0 or current < target:
+                diff = target  # 單道食物目標熱量
+                recommendation_messages[meal] = f"尚未達標，建議每道餐點攝取約 {diff:.0f} kcal"
+
+                # 篩選熱量在目標±50 kcal的食物
+                filtered = df[df['calories'].between(diff - 50, diff + 50)]
+
+                # 若不夠，補上最接近的
+                if len(filtered) < 3:
+                    filtered = df.sort_values(by='calories', key=lambda x: abs(x - diff)).head(3)
+
+                recommendations[meal] = filtered.head(3)[['label', 'calories', 'protein', 'fats', 'carbohydrates']].to_dict(orient='records')
+            else:
+                recommendation_messages[meal] = "本餐已達標，無需額外補充"
+                recommendations[meal] = []
+
+
+    return render_template('nutrition_suggestion.html',
+                           nutrition=nutrition_target,
+                           daily=daily,
+                           goal=goal,
+                           meal_targets=meal_targets,
+                           recommendations=recommendations,
+                           recommendation_messages=recommendation_messages)
 
 
 if __name__ == '__main__':
