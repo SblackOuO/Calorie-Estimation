@@ -68,6 +68,20 @@
           <li>碳水化合物：<span {% if daily.carbohydrates > nutrition.carbs %}style="color:red;"{% endif %}>{{ daily.carbohydrates }} g</span></li>
         </ul>
 
+        <h5 class="mt-4">🍖 每餐推薦</h5>
+        {% for meal, message in recommendation_messages.items() %}
+          <h6>{{ meal }}：{{ message }}</h6>
+          {% if recommendations[meal] %}
+            <ul>
+              {% for item in recommendations[meal] %}
+                <li>{{ item.label }} - {{ item.calories }} kcal, 蛋白質: {{ item.protein }}g, 脂肪: {{ item.fats }}g, 碳水: {{ item.carbohydrates }}g</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endfor %}
+
+
+
         <div class="text-center mt-4">
           <a href="/daily-log?force=1" class="btn btn-outline-success mb-2">重新輸入體重</a><br>
           <a href="/homepage" class="btn btn-outline-primary">回首頁</a>
