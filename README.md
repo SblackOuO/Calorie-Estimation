@@ -14,20 +14,9 @@ This project uses image recognition to estimate food calories from user-uploaded
 
 We use a combination of:
 - [Food-101](https://data.vision.ee.ethz.ch/cvl/food-101/)
-- [UECFood256](http://foodcam.mobi/dataset256.html)
-- [ChineseFoodNet](https://github.com/xtudbx/ChineseFoodNet)
-- Custom daily meal photos
+- [Food-101 Nutritional Information](https://www.kaggle.com/datasets/sanadalali/food-101-nutritional-information?fbclid=IwY2xjawKli6JleHRuA2FlbQIxMABicmlkETFiVER4YTRBbGpmUVYwTlRuAR58CAXne02G-MrhdALIj5w26y7h-rg54mgIY9Xm2I8ZzZTgs2cMpnSDzzungQ_aem_mr8c5qAUe476Udd-pBCxfA)
 
 ##  Models
 
-- MobileNetV2 / ResNet for classification
+- EfficientNet / ResNet for classification
 - YOLOv5 / Faster R-CNN for food detection
-- Calorie lookup table for estimation
-- Optional: Mask R-CNN for ingredient segmentation
-
-##  Setup
-
-```bash
-git clone https://github.com/<your-team-id>/food-calorie-ai.git
-cd food-calorie-ai
-pip install -r requirements.txt
