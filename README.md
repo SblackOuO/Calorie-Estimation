@@ -18,5 +18,6 @@ We use a combination of:
 
 ##  Models
 
+- Mobilenetv2
 - EfficientNet / ResNet for classification
 - YOLOv5 / Faster R-CNN for food detection
