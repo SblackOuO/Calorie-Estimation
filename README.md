@@ -18,6 +18,7 @@ We use a combination of:
 
 ##  Models
 
-- Mobilenetv2
-- EfficientNet / ResNet for classification
+- MobileNetV2 / ResNet for classificationAdd commentMore actions
 - YOLOv5 / Faster R-CNN for food detection
+- Calorie lookup table for estimation
+- Optional: Mask R-CNN for ingredient segmentation
